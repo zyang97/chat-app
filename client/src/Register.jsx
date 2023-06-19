@@ -11,7 +11,7 @@ export default function RegisterAndLoginForm() {
     async function handleSubmit(ev) {
         const url = isLoginOrRegister === 'register' ? 'register' : 'login';
         ev.preventDefault();
-        const {data} = axios.post('/' + url, {username, password});
+        const data = axios.post('/' + url, {username, password});
         setLoggedInUsername(username);
         setId(data.id);
     }
