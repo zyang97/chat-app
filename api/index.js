@@ -2,11 +2,13 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
-const User = require('./models/User');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const ws = require('ws');
+
+const User = require('./models/User');
+const Message = require('./models/Message');
 
 dotenv.config();
 mongoose.connect(process.env.MONGODB_URL);
@@ -45,7 +47,7 @@ app.post('/login', async (req, res) => {
             });
         });
     }
-})
+});
 
 app.post('/register', async (req, res) => {
     const {username, password} = req.body;
@@ -71,9 +73,10 @@ const server = app.listen(4040);
 
 const wss = new ws.WebSocketServer({server});
 wss.on('connection', (connection, req) => {
+    // Read username and id from cookie of this connection.
     const cookies = req.headers.cookie;
     if (cookies) {
-        tokenStr = cookies.split(';').find(str => str.startsWith('token='));
+        const tokenStr = cookies.split(';').find(str => str.startsWith('token='));
         if (tokenStr) {
             token = tokenStr.split('=')[1];
             if (token) {
@@ -87,9 +90,35 @@ wss.on('connection', (connection, req) => {
         }
     }
 
+    connection.on('message', async (message) => {
+        const {recipient, text} = JSON.parse(message.toString());
+        console.log(recipient, text);
+        if (recipient && text) {
+            // Create Message object.
+            const message = await Message.create({
+                sender: connection.userId,
+                recipient: recipient,
+                text: text,
+            });
+            [...wss.clients]
+                .filter(c => c.userId === recipient)
+                .forEach(c => c.send(JSON.stringify({
+                    text: text, 
+                    sender: connection.userId,
+                    id: message._id,
+                })));
+        }
+    });
+
+
+    // Notify every online user when someone goes online.
     [...wss.clients].forEach(client => {
         client.send(JSON.stringify({
-            online: [...wss.clients].map(c => ({userId: c.userId, username: c.username}))
+            online: [...wss.clients].map(c => ({
+                userId: c.userId, 
+                username: c.username,
+            })),
         }));
-    })
+    });
+
 });
