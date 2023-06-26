@@ -85,6 +85,14 @@ app.post('/register', async (req, res) => {
     }
 });
 
+app.get('/people', async (req, res) => {
+    const users = await User.find({}, {
+        '_id': 1, 
+        'username': 1,
+    });
+    res.json(users);
+});
+
 app.get('/messages/:userId', async (req,res) => {
     const {userId} = req.params;
     const userData = await getUserDataFromRequest(req);
@@ -119,7 +127,6 @@ wss.on('connection', (connection, req) => {
 
     connection.on('message', async (message) => {
         const {recipient, text} = JSON.parse(message.toString());
-        console.log(recipient, text);
         if (recipient && text) {
             // Create Message object.
             const message = await Message.create({

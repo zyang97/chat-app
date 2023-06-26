@@ -1,13 +1,14 @@
 import { useContext, useEffect, useRef, useState } from "react"
-import Avatar from "./Avatar";
 import Logo from "./Logo";
 import { UserContext } from "./UserContext";
 import {uniqBy} from 'lodash';
 import axios from "axios";
+import Contact from "./Contact";
 
 export default function Chat() {
     const [ws, setWs] = useState(null);
     const [onlinePeople, setOnlinePeople] = useState({});
+    const [offlinePeople,setOfflinePeople] = useState({});
     const [selectedUserId, setSelectedUserId] = useState(null);
     const [newMessageText, setNewMessageText] = useState('');
     const [messages, setMessages] = useState([]);
@@ -27,13 +28,28 @@ export default function Chat() {
         }
     }, [messages]);
 
+    // Load history messages of current user with the selected user from dataset.
     useEffect(() => {
         if (selectedUserId) {
-          axios.get('/messages/'+selectedUserId).then(res => {
-            setMessages(res.data);
-          });
+            axios.get('/messages/'+selectedUserId).then(res => {
+                setMessages(res.data);
+            });
         }
-      }, [selectedUserId]);
+    }, [selectedUserId]);
+
+    // Load all offline people.
+    useEffect(() => {
+        axios.get('/people').then(res => {
+            const offlinePeopleArr = res.data
+                .filter(p => p._id !== id)
+                .filter(p => !Object.keys(onlinePeople).includes(p._id));
+            const offlinePeople = {};
+            offlinePeopleArr.forEach(p => {
+                offlinePeople[p._id] = p;
+            });
+            setOfflinePeople(offlinePeople);
+        });
+    }, [onlinePeople]);
 
     // connectToWs() connects the WebSocket.
     function connectToWs() {
@@ -99,17 +115,29 @@ export default function Chat() {
     // Remove the duplicate messages by '_id'.
     const messagesNoDup = uniqBy(messages, '_id');
 
+    // console.log('offline: ', offlinePeople);
+
     return (
         <div className="flex h-screen">
             <div className="bg-gray-100 w-1/3 pl-4 pt-4">
                 <Logo />
                 {Object.keys(onlinePeopleExclOurUser).map(userId => (
-                    <div key={userId} onClick={() => selectContact(userId)} className={"border-b border-gray-300 py-2 flex items-center gap-4 " + (selectedUserId === userId ? "bg-gray-300" : "bg-gray-100")}>
-                        <Avatar username={onlinePeopleExclOurUser[userId]} userId={userId}/>
-                        <span className="text-gray-700">
-                            {onlinePeopleExclOurUser[userId]}
-                        </span>
-                    </div>
+                    <Contact 
+                        key={userId}
+                        id={userId} 
+                        username={onlinePeopleExclOurUser[userId]}
+                        selected={userId === selectedUserId}
+                        onClick={() => setSelectedUserId(userId)}
+                        online={true}/>
+                ))}
+                {Object.keys(offlinePeople).map(userId => (
+                    <Contact 
+                        key={userId}
+                        id={userId} 
+                        username={offlinePeople[userId].username}
+                        selected={userId === selectedUserId}
+                        onClick={() => setSelectedUserId(userId)}
+                        online={false}/>
                 ))}
                 </div>
             <div className="flex flex-col bg-white-100 w-2/3 p-2">
