@@ -1,7 +1,8 @@
-import { useContext, useEffect, useState } from "react"
+import { useContext, useEffect, useRef, useState } from "react"
 import Avatar from "./Avatar";
 import Logo from "./Logo";
 import { UserContext } from "./UserContext";
+import {uniqBy} from 'lodash';
 
 export default function Chat() {
     const [ws, setWs] = useState(null);
@@ -10,12 +11,20 @@ export default function Chat() {
     const [newMessageText, setNewMessageText] = useState('');
     const [messages, setMessages] = useState([]);
     const {username, id} = useContext(UserContext);
+    const newMessageRef = useRef();
 
     useEffect(() => {
         const ws = new WebSocket('ws://localhost:4040');
         setWs(ws);
         ws.addEventListener('message', handleMessage);
     }, [selectedUserId]);
+
+    useEffect(() => {
+        const div = newMessageRef.current;
+        if (div) {
+          div.scrollIntoView({behavior:'smooth', block:'end'});
+        }
+      }, [messages]);
 
     function showOnlinePeople(peopleList) {
         const people = {};
@@ -33,7 +42,7 @@ export default function Chat() {
         if ('online' in data) {
             showOnlinePeople(data.online);
         } else if ('text' in data) {
-            setMessages(prev => ([...prev, {text: data.text, isOur: false}]));
+            setMessages(prev => ([...prev, {...data}]));
         }
 
 
@@ -50,12 +59,18 @@ export default function Chat() {
             text: newMessageText,
         }))
         setNewMessageText('');
-        setMessages(prev => ([...prev, {text: newMessageText, isOur: true}]));
+        setMessages(prev => ([...prev, {
+            text: newMessageText, 
+            sender: id, 
+            recipient: selectedUserId,
+            _id: Date.now(),
+        }]));
     }
 
-    console.log('Current user: ' + username);
     const onlinePeopleExclOurUser = {...onlinePeople};
     delete onlinePeopleExclOurUser[id];
+
+    const messagesNoDup = uniqBy(messages, '_id');
 
     return (
         <div className="flex h-screen">
@@ -81,17 +96,21 @@ export default function Chat() {
                             </div>
                         )
                     }
-                    {/* Show messages. */}
-                    {
+                    { // Show messages.
                         !!selectedUserId && (
-                            <div>
-                                {
-                                    messages.map(message => (
-                                        <div>
-                                            {message.text}
+                            <div className="relative h-full">
+                                <div className="absolute overflow-y-scroll inset-0">
+                                    {messagesNoDup.map(message => (
+                                        <div className={message.sender === id ? "text-right" : "text-left"}>
+                                            <div className={"text-left inline-block p-2 m-2 rounded-md " + (message.sender === id ? "bg-green-500" : "bg-gray-200")}>
+                                                sender: {message.sender} <br />
+                                                my id: {id} <br />
+                                                {message.text}
+                                            </div>
                                         </div>
-                                    ))
-                                }
+                                     ))}
+                                    <div ref={newMessageRef}></div>
+                                </div>
                             </div>
                         )
                     }
