@@ -3,6 +3,7 @@ import Avatar from "./Avatar";
 import Logo from "./Logo";
 import { UserContext } from "./UserContext";
 import {uniqBy} from 'lodash';
+import axios from "axios";
 
 export default function Chat() {
     const [ws, setWs] = useState(null);
@@ -13,19 +14,41 @@ export default function Chat() {
     const {username, id} = useContext(UserContext);
     const newMessageRef = useRef();
 
+    // Connect to WebSocket,
     useEffect(() => {
-        const ws = new WebSocket('ws://localhost:4040');
-        setWs(ws);
-        ws.addEventListener('message', handleMessage);
+        connectToWs();
     }, [selectedUserId]);
 
+    // Scroll down to the bottom when new messages coming.
     useEffect(() => {
         const div = newMessageRef.current;
         if (div) {
-          div.scrollIntoView({behavior:'smooth', block:'end'});
+            div.scrollIntoView({behavior:'smooth', block:'end'});
         }
-      }, [messages]);
+    }, [messages]);
 
+    useEffect(() => {
+        if (selectedUserId) {
+          axios.get('/messages/'+selectedUserId).then(res => {
+            setMessages(res.data);
+          });
+        }
+      }, [selectedUserId]);
+
+    // connectToWs() connects the WebSocket.
+    function connectToWs() {
+        const ws = new WebSocket('ws://localhost:4040');
+        setWs(ws);
+        ws.addEventListener('message', handleMessage);
+        ws.addEventListener('close', () => {
+            setTimeout(() => {
+                console.log('Disconnected. Trying to reconnect...');
+                connectToWs();
+            }, 1000);
+        });
+    }
+
+    // showOnlinePeople() lists all the people that are online.
     function showOnlinePeople(peopleList) {
         const people = {};
         peopleList.forEach(({userId, username}) => {
@@ -33,10 +56,10 @@ export default function Chat() {
                 people[userId] = username;
             }
         });
-        // delete people[id];
         setOnlinePeople(people);
     }
 
+    // handleMessage() receives the messages from others.
     function handleMessage(ev) {
         const data = JSON.parse(ev.data);
         if ('online' in data) {
@@ -48,10 +71,12 @@ export default function Chat() {
 
     }
 
+    // selectContact() set the contact to be selected.
     function selectContact(userId) {
         setSelectedUserId(userId);
     }
 
+    // sendMessage() sends the messages to other contacts.
     function sendMessage(ev) {
         ev.preventDefault();
         ws.send(JSON.stringify({
@@ -67,9 +92,11 @@ export default function Chat() {
         }]));
     }
 
+    // Remove duplicate online contacts and the user himself.
     const onlinePeopleExclOurUser = {...onlinePeople};
     delete onlinePeopleExclOurUser[id];
 
+    // Remove the duplicate messages by '_id'.
     const messagesNoDup = uniqBy(messages, '_id');
 
     return (
@@ -101,10 +128,8 @@ export default function Chat() {
                             <div className="relative h-full">
                                 <div className="absolute overflow-y-scroll inset-0">
                                     {messagesNoDup.map(message => (
-                                        <div className={message.sender === id ? "text-right" : "text-left"}>
+                                        <div key={message._id} className={message.sender === id ? "text-right" : "text-left"}>
                                             <div className={"text-left inline-block p-2 m-2 rounded-md " + (message.sender === id ? "bg-green-500" : "bg-gray-200")}>
-                                                sender: {message.sender} <br />
-                                                my id: {id} <br />
                                                 {message.text}
                                             </div>
                                         </div>
