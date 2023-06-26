@@ -108,6 +108,36 @@ const server = app.listen(4040);
 
 const wss = new ws.WebSocketServer({server});
 wss.on('connection', (connection, req) => {
+
+    // Notify every online people.
+    function notifyOnlinePeople() {
+        [...wss.clients].forEach(client => {
+            client.send(JSON.stringify({
+                online: [...wss.clients].map(c => ({
+                    userId: c.userId, 
+                    username: c.username,
+                })),
+            }));
+        });
+    }
+
+    // Set to online.
+    connection.isAlive = true;
+
+    connection.timer = setInterval(() => {
+        connection.ping();
+        connection.deatTimer = setTimeout(() => {
+            connection.isAlive = false;
+            connection.terminate();
+            notifyOnlinePeople();
+            console.log('dead');
+        }, 1000);
+    }, 5000);
+
+    connection.on('pong', () => {
+        clearTimeout(connection.deatTimer);
+    });
+
     // Read username and id from cookie of this connection.
     const cookies = req.headers.cookie;
     if (cookies) {
@@ -125,6 +155,7 @@ wss.on('connection', (connection, req) => {
         }
     }
 
+    // Receiving all messages.
     connection.on('message', async (message) => {
         const {recipient, text} = JSON.parse(message.toString());
         if (recipient && text) {
@@ -145,15 +176,9 @@ wss.on('connection', (connection, req) => {
         }
     });
 
+    notifyOnlinePeople();
+});
 
-    // Notify every online user when someone goes online.
-    [...wss.clients].forEach(client => {
-        client.send(JSON.stringify({
-            online: [...wss.clients].map(c => ({
-                userId: c.userId, 
-                username: c.username,
-            })),
-        }));
-    });
-
+wss.on('close', data => {
+    console.log('Disconnected.', data);
 });
