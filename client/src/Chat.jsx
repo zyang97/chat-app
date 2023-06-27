@@ -12,7 +12,7 @@ export default function Chat() {
     const [selectedUserId, setSelectedUserId] = useState(null);
     const [newMessageText, setNewMessageText] = useState('');
     const [messages, setMessages] = useState([]);
-    const {username, id} = useContext(UserContext);
+    const {username, id, setUsername, setId} = useContext(UserContext);
     const newMessageRef = useRef();
 
     // Connect to WebSocket,
@@ -81,7 +81,9 @@ export default function Chat() {
         if ('online' in data) {
             showOnlinePeople(data.online);
         } else if ('text' in data) {
-            setMessages(prev => ([...prev, {...data}]));
+            if (data.sender == selectedUserId) {
+                setMessages(prev => ([...prev, {...data}]));
+            }
         }
 
 
@@ -108,6 +110,15 @@ export default function Chat() {
         }]));
     }
 
+    // logout() log the current out.
+    function logout() {
+        axios.post('/logout').then(() => {
+          setWs(null);
+          setId(null);
+          setUsername(null);
+        });
+      }
+
     // Remove duplicate online contacts and the user himself.
     const onlinePeopleExclOurUser = {...onlinePeople};
     delete onlinePeopleExclOurUser[id];
@@ -115,31 +126,44 @@ export default function Chat() {
     // Remove the duplicate messages by '_id'.
     const messagesNoDup = uniqBy(messages, '_id');
 
-    // console.log('offline: ', offlinePeople);
-
     return (
         <div className="flex h-screen">
-            <div className="bg-gray-100 w-1/3 pl-4 pt-4">
-                <Logo />
-                {Object.keys(onlinePeopleExclOurUser).map(userId => (
-                    <Contact 
-                        key={userId}
-                        id={userId} 
-                        username={onlinePeopleExclOurUser[userId]}
-                        selected={userId === selectedUserId}
-                        onClick={() => setSelectedUserId(userId)}
-                        online={true}/>
-                ))}
-                {Object.keys(offlinePeople).map(userId => (
-                    <Contact 
-                        key={userId}
-                        id={userId} 
-                        username={offlinePeople[userId].username}
-                        selected={userId === selectedUserId}
-                        onClick={() => setSelectedUserId(userId)}
-                        online={false}/>
-                ))}
+            {/* Contact side bar. */}
+            <div className="bg-gray-100 w-1/3 flex flex-col overflow-y-scroll inset-0">
+                <div className="flex-grow">
+                    <Logo />
+                    {Object.keys(onlinePeopleExclOurUser).map(userId => (
+                        <Contact 
+                            key={userId}
+                            id={userId} 
+                            username={onlinePeopleExclOurUser[userId]}
+                            selected={userId === selectedUserId}
+                            onClick={() => setSelectedUserId(userId)}
+                            online={true}/>
+                    ))}
+                    {Object.keys(offlinePeople).map(userId => (
+                        <Contact 
+                            key={userId}
+                            id={userId} 
+                            username={offlinePeople[userId].username}
+                            selected={userId === selectedUserId}
+                            onClick={() => setSelectedUserId(userId)}
+                            online={false}/>
+                    ))}
                 </div>
+                <div className="p-2 text-center flex items-center justify-center">
+                    <span className="mr-2 text-sm text-gray-600 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                            <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clipRule="evenodd" />
+                        </svg>
+                        {username}
+                    </span>
+                    <button onClick={logout} className="text-sm bg-gray-200 py-1 px-2 text-gray-500 border rounded-sm">
+                        logout
+                    </button>
+                </div>
+            </div>
+            {/* Message bar. */}
             <div className="flex flex-col bg-white-100 w-2/3 p-2">
                 <div className="flex-grow">
                     {
