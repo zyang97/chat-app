@@ -1,6 +1,7 @@
 import axios from "axios";
 import { useContext, useState } from "react";
 import { UserContext } from "./UserContext";
+import Logo from "./Logo";
 
 
 export default function RegisterAndLoginForm() {
@@ -16,7 +17,10 @@ export default function RegisterAndLoginForm() {
         setId(data.id);
     }
     return (
-        <div className="bg-blue-50 h-screen flex items-center">
+        <div className="bg-blue-50 flex flex-col h-screen items-center justify-center">
+            <div className="text-blue-600 font-aeril flex flex gap-2 mb-4" style={{'fontSize': 30}}>
+                Sign in
+            </div>
             <form className="w-64 mx-auto mb-12" onSubmit={handleSubmit}>
                 <input value={username} 
                        onChange={ev => setUsername(ev.target.value)} 
@@ -35,9 +39,9 @@ export default function RegisterAndLoginForm() {
                     {
                         isLoginOrRegister === 'register' && (
                             <div>
-                                Already a member? 
-                                <button onClick={() => setIsLoginOrRegister('login')}>
-                                    Login here
+                                Already a member?&nbsp;
+                                <button onClick={() => setIsLoginOrRegister('login')} className="text-blue-700">
+                                    Login
                                 </button>
                             </div>
                         )
@@ -45,8 +49,8 @@ export default function RegisterAndLoginForm() {
                     {
                         isLoginOrRegister === 'login' && (
                             <div>
-                                Don't have an account?
-                                <button onClick={() => setIsLoginOrRegister('register')}>
+                                Don't have an account?&nbsp;
+                                <button onClick={() => setIsLoginOrRegister('register')} className="text-blue-700">
                                     Register
                                 </button>
                             </div>
